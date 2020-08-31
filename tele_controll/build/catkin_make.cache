@@ -1,0 +1,2 @@
+omniwheel_control
+-DCATKIN_DEVEL_PREFIX=/home/chenxin/workspace/tele_controll/devel -DCMAKE_INSTALL_PREFIX=/home/chenxin/workspace/tele_controll/install -G Unix Makefiles

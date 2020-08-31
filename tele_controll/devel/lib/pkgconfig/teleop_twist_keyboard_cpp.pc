@@ -1,0 +1,8 @@
+prefix=/home/chenxin/workspace/tele_controll/devel
+
+Name: teleop_twist_keyboard_cpp
+Description: Description of teleop_twist_keyboard_cpp
+Version: 0.0.0
+Cflags: -I/home/chenxin/workspace/tele_controll/devel/include -I/home/chenxin/workspace/tele_controll/src/teleop_twist_keyboard_cpp/src
+Libs: -L/home/chenxin/workspace/tele_controll/devel/lib 
+Requires: message_runtime roscpp geometry_msgs

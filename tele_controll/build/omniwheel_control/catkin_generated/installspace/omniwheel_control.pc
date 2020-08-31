@@ -1,0 +1,8 @@
+prefix=/home/chenxin/workspace/tele_controll/install
+
+Name: omniwheel_control
+Description: Description of omniwheel_control
+Version: 0.0.0
+Cflags: -I/home/chenxin/workspace/tele_controll/install/include
+Libs: -L/home/chenxin/workspace/tele_controll/install/lib 
+Requires: message_runtime roscpp geometry_msgs
