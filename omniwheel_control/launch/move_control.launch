@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<launch>
+	<node pkg="omniwheel_control" type="trans.py" name="socket" output="screen">
+	</node>
+
+    <node pkg="omniwheel_control" type="teleop_twist_keyboard" name="teleop_twist_keyboard" launch-prefix="xterm -e">
+    </node>
+    
+    <node pkg="omniwheel_control" type="move_control" name="vel_split" ></node>
+</launch>
