@@ -40,8 +40,8 @@ map_table = [[0, 1, 2],
 
 # ip_addr = '192.168.1.102'
 # port = 5000
-ip_addr = '192.168.2.201'
-port = 10500
+ip_addr = '192.168.2.249'
+port = 5000
 connect_flag = 0
 address = (ip_addr, port)
 
@@ -81,7 +81,7 @@ def fun1(message):
     p.send(struct.pack('<h', 666)) #起始字符    
 
     for i in range(len(buff)):
-        p.send(struct.pack('<h', buff[i]))
+        p.send(struct.pack('<h', buff[i]*0.1))#这里乘以0.1来控制数量级到几十
     p.send(struct.pack('<h', 888)) # 结束字符
 
     return 0
