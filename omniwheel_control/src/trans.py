@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
  
-# import socket
-# import json
+
+
 import rospy
 import socket 
 from geometry_msgs.msg import Twist
@@ -61,6 +61,7 @@ class Wheels:
         self.y = y
         self.angle = angle
         self.vel = 0.0
+        self.distance = 0.0
 
 class KeyboardCtrlVelocityFactory:
 
@@ -68,15 +69,15 @@ class KeyboardCtrlVelocityFactory:
 
         #下面初始化PLC链接
         initVal = 0
-        buff = [initVal for i in range(21)]  # 这里需要修改成单元的数量
-        cell_number = 0
+        # buff = [initVal for i in range(21)]  # 这里需要修改成单元的数量
+        # cell_number = 0
         self.map_table = list2=[0.0 for x in range(0,192)]
         self.CoveredWheels = []
         self.tlist = [] #用于保存内容
-        ip_addr = '192.168.2.201'
-        port = 10500
-        # ip_addr = '192.168.2.249'
-        # port = 5000
+        #ip_addr = '192.168.2.201'
+        #port = 10500
+        ip_addr = '192.168.2.249'
+        port = 5000
         self.connect_flag = 0
         address = (ip_addr, port)
 
@@ -94,14 +95,26 @@ class KeyboardCtrlVelocityFactory:
         #下面初始化ROS的节点
         rospy.init_node("socket", anonymous=True)
         self.linear = [0.0, 0.0, 0.0]
+        self.angular = [0.0, 0.0, 0.0]
         self.subscriber = rospy.Subscriber("cmd_vel", Twist, self.callback)
-        self.subscriber_1 = rospy.Subscriber("cell_number", wheels_trans, self.callback2)
+        self.subscriber_1 = rospy.Subscriber("wheel_number", wheels_trans, self.callback2)
         signal.signal(signal.SIGINT, self.exit)
         signal.signal(signal.SIGTERM, self.exit)
         self.tlist = []
         self.ReadFiles(filepath)
         self.ThreadStart()
-        # print "\nTranspy Process exit\n"
+        # 因为轮子还没装完，因此我需要在这里做一个映射，将我的轮子的编号map到控制器的编号
+        # self.map =list2=[0 for x in range(0,21)]
+        self.map = [30, 94, 158,
+                    34, 98, 162,
+                    38, 102, 166,
+                    44, 108, 172,
+                    37, 101, 165,
+                    33, 97, 161,
+                    39, 103, 167]
+
+        
+        # print "\nTranspy Process exit\n"s
 
 
     def exit(signum, frame):
@@ -122,21 +135,30 @@ class KeyboardCtrlVelocityFactory:
         self.angular[0] = message.angular.x
         self.angular[1] = message.angular.y
         self.angular[2] = message.angular.z
+        # rospy.loginfo(self.linear)
 
     def callback2(self, message):
         # 这个是接收视觉检测topic
         self.CoveredWheels = message.wID
         self.centerx = message.wcenterx
         self.centery = message.wcentery
+        # rospy.loginfo(self.CoveredWheels)
+
+
+        # 我要在下面做速度计算和速度分解
+        self.velocity_cal()
+        self.VelFact(self.linear[0], self.linear[1], self.angular[2])
+
+
 
     def length_cal(self, point1, point2):
         # 计算距离的函数
         return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
-    def velocity_cal(self, wheels_enable, tlist, j):
+    def velocity_cal(self):
         # 计算每个covered到轮子中心到物体中心的距离
-        for i in wheels_enable:
-            tlist[i].distance = length_cal([tlist[i].x, tlist[i].y], [resx[j], resy[j]])
+        for i in self.CoveredWheels:
+            self.tlist[i].distance = self.length_cal([self.tlist[i].x, self.tlist[i].y], [self.centerx, self.centery])
 
     def ReadFiles(self, filepath):
         # 这个函数是想在读出我们的wheels_num.txt的文件中的内容,通过视觉检测出来的的编号对应
@@ -156,13 +178,13 @@ class KeyboardCtrlVelocityFactory:
 
     def VelFact(self, vx, vy, omega):
         # 分解模型
-        for i in wheels_enable:
+        for i in self.CoveredWheels:
             if i < 64:
-                tlist[i].vel = -vx + tlist[i].distance * omega
+                self.tlist[i].vel = -vx + self.tlist[i].distance * omega
             elif i < 128:
-                tlist[i].vel = vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) + tlist[i].distance * omega
+                self.tlist[i].vel = vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) + self.tlist[i].distance * omega
             elif i < 192:
-                tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + tlist[i].distance * omega
+                self.tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + self.tlist[i].distance * omega
         self.SendMsg()
 
     def ThreadingJob(self):
@@ -170,12 +192,26 @@ class KeyboardCtrlVelocityFactory:
 
     def SendMsg(self):
         # global cell_number
-
         # 下面是发送的格式报文开始666,结束888
-        p.send(struct.pack('<h', 666)) #起始字符    
-        for i in range(len(self.tlist)):
-            p.send(struct.pack('<h', self.tlist[i]*0.1))#这里乘以0.1来控制数量级到几十
-        p.send(struct.pack('<h', 888)) # 结束字符
+
+        # p.send(struct.pack('<h', 666)) #起始字符    
+        # for i in range(len(self.tlist)):
+        #     p.send(struct.pack('<h', self.tlist[i].vel*0.1))#这里乘以0.1来控制数量级到几十
+        #     rospy.INFO(self.tlist[i].vel)
+        # p.send(struct.pack('<h', 888)) # 结束字符
+
+
+
+        self.p.send(struct.pack('<h', 666)) #起始字符    
+        rospy.loginfo("-------------------------------")
+        for i in range(len(self.map)):
+            self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
+            
+            rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
+        rospy.loginfo("-------------------------------")
+        self.p.send(struct.pack('<h', 888)) # 结束字符
+        
+
         return 0
 
     def ThreadStart(self):
@@ -188,6 +224,6 @@ class KeyboardCtrlVelocityFactory:
 
 
 if __name__ == '__main__':
-    filepath = r"/home/chenxin/workspace/omniwheeltest/omniwheel_control/src/wheels_num.txt"
+    filepath = r"/home/soft/catkin_ws/src/omniwheelstest/omniwheel_control/src/wheels_num.txt"
     function = KeyboardCtrlVelocityFactory(filepath)
 
