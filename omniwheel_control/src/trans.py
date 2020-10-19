@@ -56,7 +56,7 @@ import threading
 
     
 class Wheels:
-    def __init__(self):
+    def __init__(self, x, y, angle, vel):
         self.x = x
         self.y = y
         self.angle = angle
@@ -70,7 +70,7 @@ class KeyboardCtrlVelocityFactory:
         initVal = 0
         buff = [initVal for i in range(21)]  # 这里需要修改成单元的数量
         cell_number = 0
-        self.map_table = list2=[0 for x in range(0.0,192)]
+        self.map_table = list2=[0.0 for x in range(0,192)]
         self.CoveredWheels = []
         self.tlist = [] #用于保存内容
         ip_addr = '192.168.2.201'
@@ -86,18 +86,18 @@ class KeyboardCtrlVelocityFactory:
             self.p.connect((ip_addr,port))
             print("SUCCESS：已经成功连接到控制器！")
             self.connect_flag = 1
-            print("ERROR：无法链接到控制器，请重检查硬件链接！")
         except:
-            pass
+            print("ERROR：无法链接到控制器，请重检查硬件链接！")
+
 
 
         #下面初始化ROS的节点
         rospy.init_node("socket", anonymous=True)
         self.linear = [0.0, 0.0, 0.0]
         self.subscriber = rospy.Subscriber("cmd_vel", Twist, self.callback)
-        self.subscriber_1 = rospy.Subscriber("cell_number", wheels, self.callback2)
-        self.signal.signal(signal.SIGINT, self.exit)
-        self.signal.signal(signal.SIGTERM, self.exit)
+        self.subscriber_1 = rospy.Subscriber("cell_number", wheels_trans, self.callback2)
+        signal.signal(signal.SIGINT, self.exit)
+        signal.signal(signal.SIGTERM, self.exit)
         self.tlist = []
         self.ReadFiles(filepath)
         self.ThreadStart()
