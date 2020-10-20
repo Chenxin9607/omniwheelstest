@@ -105,13 +105,22 @@ class KeyboardCtrlVelocityFactory:
         self.ThreadStart()
         # 因为轮子还没装完，因此我需要在这里做一个映射，将我的轮子的编号map到控制器的编号
         # self.map =list2=[0 for x in range(0,21)]
+        # self.map = [30, 94, 158,
+        #             34, 98, 162,
+        #             38, 102, 166,
+        #             44, 108, 172,
+        #             37, 101, 165,
+        #             33, 97, 161,
+        #             39, 103, 167]
         self.map = [30, 94, 158,
-                    34, 98, 162,
-                    38, 102, 166,
-                    44, 108, 172,
-                    37, 101, 165,
                     33, 97, 161,
-                    39, 103, 167]
+                    41, 105, 169,
+                    46, 110, 174,
+                    42, 106, 170,
+                    34, 98, 162,
+                    38, 102, 166]
+        self.delay = 0 # 这个变量来控制我们的发送频率
+        
 
         
         # print "\nTranspy Process exit\n"s
@@ -125,7 +134,9 @@ class KeyboardCtrlVelocityFactory:
         # exit()
         rospy.signal_shutdown("manual shutdown")
 
-
+    def MainPipline(self):
+        # 这里我想要实现以我自己的速率进行采集callback并指定速率发送
+        pass
     def callback(self, message):
         # 这个函数用来接收键盘的输入
         self.linear[0] = message.linear.x
@@ -139,15 +150,18 @@ class KeyboardCtrlVelocityFactory:
 
     def callback2(self, message):
         # 这个是接收视觉检测topic
-        self.CoveredWheels = message.wID
-        self.centerx = message.wcenterx
-        self.centery = message.wcentery
-        # rospy.loginfo(self.CoveredWheels)
+        self.delay = self.delay + 1
+        if self.delay > 2:
+            self.CoveredWheels = message.wID
+            self.centerx = message.wcenterx
+            self.centery = message.wcentery
+            # rospy.loginfo(self.CoveredWheels)
 
 
-        # 我要在下面做速度计算和速度分解
-        self.velocity_cal()
-        self.VelFact(self.linear[0], self.linear[1], self.angular[2])
+            # 我要在下面做速度计算和速度分解
+            self.velocity_cal()
+            self.VelFact(self.linear[0], self.linear[1], self.angular[2])
+            self.delay = 0
 
 
 
@@ -186,6 +200,11 @@ class KeyboardCtrlVelocityFactory:
             elif i < 192:
                 self.tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + self.tlist[i].distance * omega
         self.SendMsg()
+        self.CoveredWheels = []
+        for j in range(len(self.tlist)):
+            self.tlist[j].vel = 0.0
+            self.tlist[j].distance = 0.0
+            self.tlist[j].angle = 0.0
 
     def ThreadingJob(self):
         rospy.spin()
@@ -201,16 +220,17 @@ class KeyboardCtrlVelocityFactory:
         # p.send(struct.pack('<h', 888)) # 结束字符
 
 
+        rospy.loginfo("-------------------------------")
 
         self.p.send(struct.pack('<h', 666)) #起始字符    
-        rospy.loginfo("-------------------------------")
         for i in range(len(self.map)):
             self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
-            
+        self.p.send(struct.pack('<h', 888)) # 结束字符
+
+        for i in range(len(self.map)):
             rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
         rospy.loginfo("-------------------------------")
-        self.p.send(struct.pack('<h', 888)) # 结束字符
-        
+        # rospy.sleep(0.05)
 
         return 0
 
