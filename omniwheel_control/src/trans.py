@@ -16,7 +16,7 @@ import signal
 import sys
 import struct
 import threading
-
+import time
 
 
 
@@ -56,7 +56,7 @@ import threading
 
     
 class Wheels:
-    def __init__(self, x, y, angle, vel):
+    def __init__(self, x, y, angle):
         self.x = x
         self.y = y
         self.angle = angle
@@ -74,6 +74,7 @@ class KeyboardCtrlVelocityFactory:
         self.map_table = list2=[0.0 for x in range(0,192)]
         self.CoveredWheels = []
         self.tlist = [] #用于保存内容
+        self.delay = 0 # 这个变量来控制我们的发送频率
         #ip_addr = '192.168.2.201'
         #port = 10500
         ip_addr = '192.168.2.249'
@@ -89,6 +90,8 @@ class KeyboardCtrlVelocityFactory:
             self.connect_flag = 1
         except:
             print("ERROR：无法链接到控制器，请重检查硬件链接！")
+
+            self.exit()
 
 
 
@@ -119,9 +122,8 @@ class KeyboardCtrlVelocityFactory:
                     42, 106, 170,
                     34, 98, 162,
                     38, 102, 166]
-        self.delay = 0 # 这个变量来控制我们的发送频率
         
-
+        # self.start = time.clock()
         
         # print "\nTranspy Process exit\n"s
 
@@ -151,17 +153,20 @@ class KeyboardCtrlVelocityFactory:
     def callback2(self, message):
         # 这个是接收视觉检测topic
         self.delay = self.delay + 1
-        if self.delay > 2:
+        if self.delay > 3:
+
+            # elapsed = (time.clock() - self.start)
+            # print "\nTime used:", elapsed
+
             self.CoveredWheels = message.wID
             self.centerx = message.wcenterx
             self.centery = message.wcentery
             # rospy.loginfo(self.CoveredWheels)
-
-
             # 我要在下面做速度计算和速度分解
             self.velocity_cal()
             self.VelFact(self.linear[0], self.linear[1], self.angular[2])
             self.delay = 0
+            # self.start = time.clock()
 
 
 
@@ -183,7 +188,7 @@ class KeyboardCtrlVelocityFactory:
                 # wheelsnumbers = int(sp[0])
                 # wheelsposx = float(sp[1])
                 # wheelsposy = float(sp[2])
-                whe = Wheels(int(sp[0]), float(sp[1]), float(sp[2]), float(sp[3]))
+                whe = Wheels(float(sp[1]), float(sp[2]), float(sp[3]))
                 self.tlist.append(whe)
 
     def Getlist(self):
@@ -192,13 +197,20 @@ class KeyboardCtrlVelocityFactory:
 
     def VelFact(self, vx, vy, omega):
         # 分解模型
+        # print omega
+        # print vx, " ,",vy
+
         for i in self.CoveredWheels:
             if i < 64:
                 self.tlist[i].vel = -vx + self.tlist[i].distance * omega
             elif i < 128:
-                self.tlist[i].vel = vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) + self.tlist[i].distance * omega
+                self.tlist[i].vel = vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) - self.tlist[i].distance * omega
             elif i < 192:
-                self.tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + self.tlist[i].distance * omega
+                self.tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) - self.tlist[i].distance * omega
+        # print "---------------------------"
+        # for j in self.CoveredWheels:
+        #     print self.tlist[j].distance
+        # print self.centerx, " ,", self.centery
         self.SendMsg()
         self.CoveredWheels = []
         for j in range(len(self.tlist)):
@@ -219,7 +231,7 @@ class KeyboardCtrlVelocityFactory:
         #     rospy.INFO(self.tlist[i].vel)
         # p.send(struct.pack('<h', 888)) # 结束字符
 
-
+        
         rospy.loginfo("-------------------------------")
 
         self.p.send(struct.pack('<h', 666)) #起始字符    
@@ -231,6 +243,7 @@ class KeyboardCtrlVelocityFactory:
             rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
         rospy.loginfo("-------------------------------")
         # rospy.sleep(0.05)
+
 
         return 0
 
