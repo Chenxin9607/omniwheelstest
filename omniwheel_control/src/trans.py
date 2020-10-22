@@ -153,7 +153,7 @@ class KeyboardCtrlVelocityFactory:
     def callback2(self, message):
         # 这个是接收视觉检测topic
         self.delay = self.delay + 1
-        if self.delay > 3:
+        if self.delay > 2:
 
             # elapsed = (time.clock() - self.start)
             # print "\nTime used:", elapsed
@@ -194,6 +194,10 @@ class KeyboardCtrlVelocityFactory:
     def Getlist(self):
         return self.tlist
 
+    
+    def AngleCal(self, center, whecenter):
+        ang = math.atan2(whecenter[0]-center[0], center[1]-whecenter[1])
+        return ang
 
     def VelFact(self, vx, vy, omega):
         # 分解模型
@@ -202,11 +206,35 @@ class KeyboardCtrlVelocityFactory:
 
         for i in self.CoveredWheels:
             if i < 64:
-                self.tlist[i].vel = -vx + self.tlist[i].distance * omega
+                if self.tlist[i].y < self.centery:
+                    sign0 = 1
+                elif self.tlist[i].y > self.centery:
+                    sign0 = -1
+                else:
+                    sign0 = 0    
+                self.tlist[i].vel = vx + self.tlist[i].distance * sign0 * omega
+            
             elif i < 128:
-                self.tlist[i].vel = vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) - self.tlist[i].distance * omega
+                ang1 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
+                if ang1 > math.pi/3*2 and ang1 < math.pi/3*5:
+                    sign1 = 1
+                elif ang1 == math.pi/3*2 or ang1 == math.pi/3*5:
+                    sign1 = 0
+                else:
+                    sign1 = -1
+                self.tlist[i].vel = -vx * math.cos(math.pi - math.pi*2/3) + vy * math.cos(math.pi*2/3 - math.pi/2) + sign1 * self.tlist[i].distance * omega
+            
+            
             elif i < 192:
-                self.tlist[i].vel = vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) - self.tlist[i].distance * omega
+                ang2 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
+                if ang2 > math.pi/3 and ang2 < math.pi/3*4 :
+                    sign2 = 1
+                elif ang2 == math.pi/3 or ang2 == math.pi/3*4:
+                    sign2 = 0
+                else:
+                    sign2 = -1
+                self.tlist[i].vel = -vx * math.cos(math.pi/3) - vy * math.sin(math.pi/3) + sign2 * self.tlist[i].distance * omega
+            
         # print "---------------------------"
         # for j in self.CoveredWheels:
         #     print self.tlist[j].distance
