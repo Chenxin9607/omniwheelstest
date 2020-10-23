@@ -121,7 +121,7 @@ class KeyboardCtrlVelocityFactory:
                     46, 110, 174,
                     42, 106, 170,
                     34, 98, 162,
-                    38, 102, 166] # 本来应该是下面的是对的但是我编号的时候是净像着看的所以正好反过来
+                    38, 102, 166] 
         # self.map = [30, 158, 94,
         #             33, 161, 97,
         #             41, 169, 105,
@@ -203,7 +203,9 @@ class KeyboardCtrlVelocityFactory:
 
     
     def AngleCal(self, center, whecenter):
-        ang = math.atan2(whecenter[0]-center[0], (1700-whecenter[1])-(1700-center[1]))
+        ang = math.atan2(-(whecenter[1]-center[1]), whecenter[0]-center[0])
+        if ang < 0:
+            ang = ang + 2 * math.pi
         return ang
 
     def VelFact(self, vx, vy, omega):
@@ -224,14 +226,14 @@ class KeyboardCtrlVelocityFactory:
             elif i < 128:
                 # TODO：这里的ang1还有问题就是角度不对导致的21号轮的输出数据是一个负数，它本来应该是一个正数。按D的时候
                 # print "num: ", i,", ",self.tlist[i].x,", ",self.tlist[i].y
-                print "CENTER: ", i,", ",self.centerx,", ",self.centery
+                # print "CENTER: ", i,", ",self.centerx,", ",self.centery
                 
                 ang1 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
                 # print ang1
                 
-                if ang1 > math.pi/3*2 and ang1 < math.pi/3*5:
+                if ang1 > math.pi/3 and ang1 < math.pi/3*4:
                     sign1 = 1
-                elif ang1 == math.pi/3*2 or ang1 == math.pi/3*5:
+                elif ang1 == math.pi/3 or ang1 == math.pi/3*4:
                     sign1 = 0
                 else:
                     sign1 = -1
@@ -241,19 +243,20 @@ class KeyboardCtrlVelocityFactory:
             elif i < 192:
                 # print "num: ", i,", ",self.tlist[i].x,", ",self.tlist[i].y
                 ang2 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
-                if ang2 > math.pi/3 and ang2 < math.pi/3*4 :
-                    sign2 = 1
-                elif ang2 == math.pi/3 or ang2 == math.pi/3*4:
+                # print ang2
+                if ang2 > math.pi/3*2 and ang2 < math.pi/3*5:                
+                    sign2 = -1
+                elif ang2 == math.pi/3*2 or ang2 == math.pi/3*5:                
                     sign2 = 0
                 else:
-                    sign2 = -1
+                    sign2 = 1
                 self.tlist[i].vel = -vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + sign2 * self.tlist[i].distance * omega
             
         # print "---------------------------"
         # for j in self.CoveredWheels:
         #     print self.tlist[j].distance
         # print self.centerx, " ,", self.centery
-        # self.SendMsg()
+        self.SendMsg()
         self.CoveredWheels = []
         for j in range(len(self.tlist)):
             self.tlist[j].vel = 0.0
@@ -276,10 +279,10 @@ class KeyboardCtrlVelocityFactory:
         
         rospy.loginfo("-------------------------------")
 
-        # self.p.send(struct.pack('<h', 666)) #起始字符    
-        # for i in range(len(self.map)):
-        #     self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
-        # self.p.send(struct.pack('<h', 888)) # 结束字符
+        self.p.send(struct.pack('<h', 666)) #起始字符    
+        for i in range(len(self.map)):
+            self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
+        self.p.send(struct.pack('<h', 888)) # 结束字符
 
         for i in range(len(self.map)):
             rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
