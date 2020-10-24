@@ -17,42 +17,7 @@ import sys
 import struct
 import threading
 import time
-
-
-
-# def exit(signum, frame):
-#     if connect_flag:
-#         print('Disconnect from {ip}:{port} '.format(ip=ip_addr, port=port))
-#         p.shutdown(socket.SHUT_RDWR)
-#         p.close()
-#     # exit()
-#     rospy.signal_shutdown("manual shutdown")
-
-
-
-# def fun1(message):
-#     # global cell_number
-#     buff[map_table[cell_number][0]] = message.v_right
-#     buff[map_table[cell_number][1]] = message.v_left
-#     buff[map_table[cell_number][2]] = message.v_back
-#     print(buff)  #TODO:test
-#     # struct.pack('>h', buff[0])
-#     # json_string = json.dumps(buff)
-#     # p.sendto(json_string.encode('utf-8'), address)
-#     #>:小端模式， h： int
-#     # p.send(struct.pack('<h', 666)) #起始字符
-#     p.send(struct.pack('<h', 666)) #起始字符    
-#     for i in range(len(buff)):
-#         p.send(struct.pack('<h', buff[i]*0.1))#这里乘以0.1来控制数量级到几十
-#     p.send(struct.pack('<h', 888)) # 结束字符
-
-#     return 0
-
-# def fun2(message):
-#     global cell_number
-#     cell_number = message.cell - 1
-#     # print(cell_number)s
-#     return 0
+import sys
 
     
 class Wheels:
@@ -90,8 +55,9 @@ class KeyboardCtrlVelocityFactory:
             self.connect_flag = 1
         except:
             print("ERROR：无法链接到控制器，请重检查硬件链接！")
+            rospy.signal_shutdown("ROS Stoped")
 
-            self.exit()
+            
 
 
 
@@ -104,6 +70,9 @@ class KeyboardCtrlVelocityFactory:
         signal.signal(signal.SIGINT, self.exit)
         signal.signal(signal.SIGTERM, self.exit)
         self.tlist = []
+        self.flag = 0
+        # self.ang1 = 0
+        # self
         self.ReadFiles(filepath)
         self.ThreadStart()
         # 因为轮子还没装完，因此我需要在这里做一个映射，将我的轮子的编号map到控制器的编号
@@ -160,7 +129,7 @@ class KeyboardCtrlVelocityFactory:
     def callback2(self, message):
         # 这个是接收视觉检测topic
         self.delay = self.delay + 1
-        if self.delay > 2:
+        if self.delay > 3:
 
             # elapsed = (time.clock() - self.start)
             # print "\nTime used:", elapsed
@@ -220,6 +189,7 @@ class KeyboardCtrlVelocityFactory:
                 elif self.tlist[i].y > self.centery:
                     sign0 = 1
                 else:
+                    # if 
                     sign0 = 0    
                 self.tlist[i].vel = vx + self.tlist[i].distance * sign0 * omega
             
@@ -228,13 +198,19 @@ class KeyboardCtrlVelocityFactory:
                 # print "num: ", i,", ",self.tlist[i].x,", ",self.tlist[i].y
                 # print "CENTER: ", i,", ",self.centerx,", ",self.centery
                 
-                ang1 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
+                if self.flag == 1:
+                    self.tmp1 = self.ang1
+                
+                self.ang1 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
                 # print ang1
                 
-                if ang1 > math.pi/3 and ang1 < math.pi/3*4:
+                if self.ang1 > math.pi/3 and self.ang1 < math.pi/3*4:
                     sign1 = 1
-                elif ang1 == math.pi/3 or ang1 == math.pi/3*4:
-                    sign1 = 0
+                elif self.ang1 == math.pi/3 or self.ang1 == math.pi/3*4:
+                    if self.tmp1 == 1:
+                        sign1 = 1
+                    else:
+                        sign1 = -1
                 else:
                     sign1 = -1
                 self.tlist[i].vel = -vx * math.cos(math.pi - math.pi*2/3) - vy * math.cos(math.pi*2/3 - math.pi/2) + sign1 * self.tlist[i].distance * omega
@@ -242,12 +218,17 @@ class KeyboardCtrlVelocityFactory:
             
             elif i < 192:
                 # print "num: ", i,", ",self.tlist[i].x,", ",self.tlist[i].y
-                ang2 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
+                if self.flag == 1:
+                    self.tmp2 = self.ang2               
+                self.ang2 =  self.AngleCal([self.centerx, self.centery], [self.tlist[i].x, self.tlist[i].y])
                 # print ang2
-                if ang2 > math.pi/3*2 and ang2 < math.pi/3*5:                
+                if self.ang2 > math.pi/3*2 and self.ang2 < math.pi/3*5:                
                     sign2 = -1
-                elif ang2 == math.pi/3*2 or ang2 == math.pi/3*5:                
-                    sign2 = 0
+                elif self.ang2 == math.pi/3*2 or self.ang2 == math.pi/3*5:
+                    if self.tmp2 == 1:                
+                        sign2 = 1
+                    else:
+                        sign2 = -1
                 else:
                     sign2 = 1
                 self.tlist[i].vel = -vx * math.cos(math.pi/3) + vy * math.sin(math.pi/3) + sign2 * self.tlist[i].distance * omega
@@ -256,6 +237,7 @@ class KeyboardCtrlVelocityFactory:
         # for j in self.CoveredWheels:
         #     print self.tlist[j].distance
         # print self.centerx, " ,", self.centery
+        self.flag = 1
         self.SendMsg()
         self.CoveredWheels = []
         for j in range(len(self.tlist)):
@@ -277,13 +259,16 @@ class KeyboardCtrlVelocityFactory:
         # p.send(struct.pack('<h', 888)) # 结束字符
 
         
-        rospy.loginfo("-------------------------------")
-
+        
+        # rospy.sleep(0.05)
+        # self.p.send(struct.pack('<h', 666)) #起始字符
         self.p.send(struct.pack('<h', 666)) #起始字符    
+            
         for i in range(len(self.map)):
             self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
         self.p.send(struct.pack('<h', 888)) # 结束字符
 
+        rospy.loginfo("-------------------------------")
         for i in range(len(self.map)):
             rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
         rospy.loginfo("-------------------------------")
