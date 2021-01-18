@@ -28,6 +28,32 @@ class Wheels:
         self.vel = 0.0
         self.distance = 0.0
 
+
+class MySocket:
+    """demonstration class only
+      - coded for clarity, not efficiency
+    """
+
+    def __init__(self, sock=None):
+        if sock is None:
+            self.sock = socket.socket(
+                            socket.AF_INET, socket.SOCK_STREAM)
+        else:
+            self.sock = sock
+
+    def connect(self, host, port):
+        self.sock.connect((host, port))
+
+    def mysend(self, msg):
+        totalsent = 0
+        while totalsent < 2:
+            sent = self.sock.send(msg[totalsent:])
+            if sent == 0:
+                raise RuntimeError("socket connection broken")
+            totalsent = totalsent + sent
+
+
+
 class KeyboardCtrlVelocityFactory:
 
     def __init__(self, filepath):
@@ -44,13 +70,20 @@ class KeyboardCtrlVelocityFactory:
         #port = 10500
         ip_addr = '192.168.2.249'
         port = 5000
+        # ip_addr = '192.168.2.109'
+        # port = 8080
         self.connect_flag = 0
-        address = (ip_addr, port)
+        # address = (ip_addr, port)
+        self.mysocket = MySocket()
+
 
         try:
-            self.p = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            # self.p = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+            
             print("正在连接{ip}:{port}".format(ip=ip_addr, port=port))
-            self.p.connect((ip_addr,port))
+            # self.p.connect((ip_addr,port))
+            self.mysocket.connect(ip_addr, port)
+
             print("SUCCESS：已经成功连接到控制器！")
             self.connect_flag = 1
         except:
@@ -64,7 +97,7 @@ class KeyboardCtrlVelocityFactory:
         #下面初始化ROS的节点
         rospy.init_node("socket", anonymous=True)
         self.linear = [0.0, 0.0, 0.0]
-        self.angular = [0.0, 0.0, 0.0]
+        self.angular = [0.0, 0.0, 1.0]
         self.subscriber = rospy.Subscriber("cmd_vel", Twist, self.callback)
         self.subscriber_1 = rospy.Subscriber("wheel_number", wheels_trans, self.callback2)
         signal.signal(signal.SIGINT, self.exit)
@@ -75,29 +108,27 @@ class KeyboardCtrlVelocityFactory:
         # self
         self.ReadFiles(filepath)
         self.ThreadStart()
-        # 因为轮子还没装完，因此我需要在这里做一个映射，将我的轮子的编号map到控制器的编号
-        # self.map =list2=[0 for x in range(0,21)]
-        # self.map = [30, 94, 158,
-        #             34, 98, 162,
-        #             38, 102, 166,
-        #             44, 108, 172,
-        #             37, 101, 165,
-        #             33, 97, 161,
-        #             39, 103, 167]
+
         self.map = [30, 94, 158,
                     33, 97, 161,
                     41, 105, 169,
                     46, 110, 174,
                     42, 106, 170,
                     34, 98, 162,
-                    38, 102, 166] 
-        # self.map = [30, 158, 94,
-        #             33, 161, 97,
-        #             41, 169, 105,
-        #             46, 174, 110,
-        #             42, 170, 106,
-        #             34, 162, 98,
-        #             38, 166, 102,]
+                    38, 102, 166,
+                    22, 86, 150,
+                    26, 90, 154,
+                    31, 95, 159,
+                    39, 103, 167,
+                    47, 111, 175,
+                    50, 114, 178,
+                    54, 118, 182,
+                    49, 113, 177,
+                    45, 109, 173,
+                    37, 101, 165,
+                    29, 93, 157,
+                    25, 89, 153] 
+
         
         # self.start = time.clock()
         
@@ -262,11 +293,16 @@ class KeyboardCtrlVelocityFactory:
         
         # rospy.sleep(0.05)
         # self.p.send(struct.pack('<h', 666)) #起始字符
-        self.p.send(struct.pack('<h', 666)) #起始字符    
+        # self.p.send(struct.pack('<h', 666)) #起始字符    
             
+        # for i in range(len(self.map)):
+        #     self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
+        # self.p.send(struct.pack('<h', 888)) # 结束字符
+        
+        self.mysocket.mysend(struct.pack('<h', 666))
         for i in range(len(self.map)):
-            self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
-        self.p.send(struct.pack('<h', 888)) # 结束字符
+            self.mysocket.mysend(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
+        self.mysocket.mysend(struct.pack('<h', 888)) # 结束字符
 
         rospy.loginfo("-------------------------------")
         for i in range(len(self.map)):
@@ -288,5 +324,6 @@ class KeyboardCtrlVelocityFactory:
 
 if __name__ == '__main__':
     filepath = r"/home/soft/catkin_ws/src/omniwheelstest/omniwheel_control/src/wheels_num.txt"
+
     function = KeyboardCtrlVelocityFactory(filepath)
 
