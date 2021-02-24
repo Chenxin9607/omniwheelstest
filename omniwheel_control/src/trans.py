@@ -159,20 +159,20 @@ class KeyboardCtrlVelocityFactory:
 
     def callback2(self, message):
         # 这个是接收视觉检测topic
-        self.delay = self.delay + 1
-        if self.delay > 3:
+        # self.delay = self.delay + 1
+        # if self.delay > 3:
 
             # elapsed = (time.clock() - self.start)
             # print "\nTime used:", elapsed
 
-            self.CoveredWheels = message.wID
-            self.centerx = message.wcenterx
-            self.centery = message.wcentery
-            # rospy.loginfo(self.CoveredWheels)
-            # 我要在下面做速度计算和速度分解
-            self.velocity_cal()
-            self.VelFact(self.linear[0], self.linear[1], self.angular[2])
-            self.delay = 0
+        self.CoveredWheels = message.wID
+        self.centerx = message.wcenterx
+        self.centery = message.wcentery
+        # rospy.loginfo(self.CoveredWheels)
+        # 我要在下面做速度计算和速度分解
+        self.velocity_cal()
+        self.VelFact(self.linear[0], self.linear[1], self.angular[2])
+        self.delay = 0
             # self.start = time.clock()
 
 
@@ -298,15 +298,20 @@ class KeyboardCtrlVelocityFactory:
         # for i in range(len(self.map)):
         #     self.p.send(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
         # self.p.send(struct.pack('<h', 888)) # 结束字符
-        
-        self.mysocket.mysend(struct.pack('<h', 666))
+        tmp = []
         for i in range(len(self.map)):
-            self.mysocket.mysend(struct.pack('<h', self.tlist[self.map[i]].vel*0.1))#这里乘以0.1来控制数量级到几十
-        self.mysocket.mysend(struct.pack('<h', 888)) # 结束字符
+            tmp.append(self.tlist[self.map[i]].vel*0.1)
+        tmp.append(888)
+        
+        # self.mysocket.mysend(struct.pack('<h', 666))
+        # for i in range(len(self.map)):
+        self.mysocket.mysend(struct.pack('<59h', 666,*tmp))#这里乘以0.1来控制数量级到几十
+        # self.mysocket.mysend(struct.pack('<h', 888)) # 结束字符
 
         rospy.loginfo("-------------------------------")
         for i in range(len(self.map)):
-            rospy.loginfo(self.tlist[self.map[i]].vel*0.1)
+            rospy.loginfo(self.tlist[self.map[i
+            ]].vel*0.1)
         rospy.loginfo("-------------------------------")
         # rospy.sleep(0.05)
 
